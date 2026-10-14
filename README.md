@@ -1,10 +1,6 @@
 # fireobs package
 This a package for use at the University of Wollongong's Centre for Environmental Risk Management of Bushfires, but others may find the functions useful. It contains functions to search for and download satellite images, fire line scans and progressions polygons for fires in Australia. Contact mstorey@uow.edu.au.
 
-# fireobs
-
-This is a package for use at the University of Wollongong's Centre for Environmental Risk Management of Bushfires (CERMB). It contains functions to search for and download satellite images, fire linescans and progression polygons for fires in Australia, and to measure and analyse fire spread. Contact mstorey@uow.edu.au.
-
 ## Main tools
 
 **Satellite imagery and hotspots**
