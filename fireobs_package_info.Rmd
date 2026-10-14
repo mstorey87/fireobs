@@ -1,0 +1,246 @@
+---
+title: "fireobs"
+output:
+  html_document: default
+  word_document: default
+  pdf_document: default
+date: "2024-09-18"
+editor_options:
+  chunk_output_type: inline
+  markdown: 
+    wrap: 72
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(
+	echo = TRUE,
+	message = FALSE,
+	warning = FALSE
+)
+#install fireobs package
+#devtools::install_github("mstorey87/fireobs")
+library(fireobs)
+library(mapview)
+```
+
+## Create bounding box polyon
+
+We will create a bounding box polygon around a fire or other polygon it
+will be buffered to help capture nearby scans or progression polygon
+Reproject to GDA94 because the data in the database is GDA94 We will
+also set the start and end dates for search all image sources
+
+```{r}
+
+#run bounding box function
+#"dat.fire.polygon" is an example fire area that comes with the package
+dat.bbox <-fire_bbox_polygon(fire_polygon = dat.fire.polygon,
+                             bbox_buffer_km = 20,new_crs = 4283)
+
+
+#inspect bounding box
+mapview(dat.bbox)+mapview(dat.fire.polygon,col.regions="red")
+```
+
+for all the image search functions we need a start date and end date to
+search For all the image download function we need an output folder
+
+```{r}
+#get start and end dates (or insert your own)
+datestart <- as.character(dat.fire.polygon$StartDate)
+dateend <- "2023-12-10"
+
+#set an output path for all the images that will be downloaded
+outdir <- "C:\\temp\\datatest1"
+dir.create(outdir)
+
+```
+
+## Search for satellite images
+
+There are functions to search for satellite images of a fire area (using
+the bounding box polygon). We can search for:Landsat, Sentinel 2,
+Sentinel 3, VIIRS (including hotspots), MODIS (including hotspots)
+
+## Landsat and Sentinel 2
+
+we can search for these together using the Geoscience Australia STAC
+browser There is a function that searches this database, where the
+inputs are a polygon and dates. It returns the paths of three bands from
+each satellite product that can be used to make false colour images Here
+we'll get the start and end dates from the fire polygon, which was
+originally from NSW Fire History Sentinel and Landsat images are not
+captured daily, so the function may not return anything
+
+```{r}
+
+
+#run function. Leave "collection_names" to default to all Landsat and Sentinel 2
+dat.stac <- fire_search_stac(fire_bbox = dat.bbox,start_date = datestart,end_date = dateend)
+head(dat.stac)
+
+```
+
+Download the data The images file are cloud-optimised geotiffs, which
+means we can only download the part of the image we need i.e. crop
+before downloading Inputs are the data frame produced by
+fire_search_stac and an output folder
+
+```{r}
+
+fire_download_stac(dat.bbox,dat.stac,outdir)
+
+list.files(outdir,full.names=T,pattern="_ga_") %>% 
+  purrr::map(.,~terra::plotRGB(terra::rast(.x))[[1]])
+```
+
+## MODIS and VIIRS
+
+I can't find where to easily download raw MODIS and VIIRS images which
+have image capture timestamps. Instead this function captures
+screenshots from the NASA GIBS WMS, which only has date, and overlays
+hotspots, which have timestamps. Occasionally more than one set of
+hotspots are associated with one MODIS image, so both sets are mapped
+This function calls other functions to download hotspots, access the wms
+map for each date, take a screenshot and create geotiffs. Different GIBS
+products are accessed for day (false colour RGB) and night (thermal
+band) On days where there were no hotspots, the image is written with
+only date in the file name
+
+```{r message=FALSE, warning=FALSE}
+fire_hotspot_map(fire_bbox = dat.bbox,
+                 start_date = datestart,
+                 end_date = dateend,
+                 dest_folder = outdir)
+
+#read and plot the output tifs.
+list.files(outdir,full.names=T,pattern="VIIRS_|MODIS_") %>% 
+  purrr::map(.,~terra::plotRGB(terra::rast(.x))[[1]])
+
+```
+
+## Himiwari images
+
+BOM keeps an updated collection of 10-min Himiwari cloud optimised
+geotiffs These can be accessed via a thredds server. There is a function
+to search and return a dataframe of available images. Set the
+timestep_minutes argument to find images at selected timesteps, e.g.
+every 10 minutes or 60 or 240 minutes. We can then filter that and
+download selected images, cropped to our bounding box polygon or fire
+
+```{r}
+
+dat.himiwari <- fire_search_himawari(fire_bbox = dat.bbox,start_date = datestart, end_date = dateend,timestep_minutes = 240)
+
+```
+
+Download the data Filter this data frame first to download one day as an
+example. Only the part of image within the bbox will be downloaded. As a
+default, only bands used to create a false colour image will be
+downloaded. A false colour geotiff is saved for day times and a single
+band infrared is saved for night times.
+
+```{r}
+dat.himiwari.filt <- dat.himiwari %>% 
+  #retain only first date and day time images
+  dplyr::filter(date_local==min(date_local),daynight=="day")
+
+fire_download_himiwari(fire_bbox = dat.bbox,df_download = dat.himiwari,dest_folder = outdir)
+
+
+```
+
+## Sentinel 3
+
+Sentinel 3 are course scale images, more similar to MODIS. These are not
+held by Geoscience Australia, but we can search for and download from
+the copernicus STAC browser. Sentinel 3 data may only be useful for
+large fires where nothing else is available, given its coarse
+resolution. collection_names can be changed to search for other
+available products, see here:
+<https://documentation.dataspace.copernicus.eu/APIs/STAC.html>
+
+```{r}
+dat.sen3 <- fire_search_copernicus(fire_bbox = dat.bbox,start_date = datestart,end_date = dateend)
+
+```
+
+Download the data These are not cloud-optimised geotiffs, so we need to
+download the whole files, which can be slow. There is then a separate
+function to create the false colour RGBs. We can filter the data frame
+to download just some of the images. A copernicus account is required to
+download the data. I have defaulted the user name and password to my
+mstorey account, but this would need to be changed. Sign up here:
+<https://dataspace.copernicus.eu/>
+
+```{r}
+#downloading these files takes a long time
+#but we can extract just some of the files to download e.g. daytime images
+dat.sen3.filt <- dat.sen3 %>% 
+  dplyr::filter(lubridate::hour(datetimelocal) %in% 8:19)
+
+fire_download_copernicus(fire_bbox = dat.bbox,download_df = dat.sen3.filt,dest_folder = outdir)
+```
+
+convert downloaded sentinel 3 zips to geotiffs Input path is folder
+where SEN3.zips where written. The function will list and convert all
+SEN3.zips in that folder to geotiffs. There are no atmospheric or
+topographic corrections performed. The geotiffs will be cropped to
+fire_bbox
+
+```{r message=FALSE, warning=FALSE}
+fire_sentinel3_tif(fire_bbox = dat.fire.polygon,
+                    sen3_folder = outdir)
+
+#read and plot the output tifs.
+list.files(outdir,full.names=T,pattern="sentinel3.tif") %>% 
+  purrr::map(.,~terra::plotRGB(terra::rast(.x))[[1]])
+```
+
+<!-- # Plot all images -->
+
+<!-- write plots of all images at standard scale. -->
+<!-- They can then be flicked through one by one using a program like irfanview -->
+
+<!-- ```{r} -->
+
+<!-- list.tifs <- list.files(outdir,pattern="\\.tif$",full.names = T) -->
+
+<!-- purrr::map(list.tifs,~fire_write_plot(.x,dat.fire.polygon,dat.bbox,outdir)) -->
+
+<!-- ``` -->
+
+# Line scans
+
+Function to search line scan bounding box polygons charus database Data
+are still being corrected and uploaded to the database, so this function
+does not work properly yet
+
+```{r}
+dat.scans.sf <- fire_search_scans(fire_bbox=dat.bbox,
+                  start_date=datestart,
+                  end_date="2023-12-20")
+
+mapview::mapview(dat.scans.sf)
+```
+
+# Progressions.
+
+Search database on charus for fire progression polygons There are no
+progressions for the example fire in the database yet, so as an example
+do a search with very broad dates to see if there are any progressions
+from other fires nearby
+
+```{r}
+dat.progs.sf <- fire_search_progs(fire_bbox=dat.bbox, start_date="2015-01-01",  end_date="2024-01-01")
+mapview(dat.progs.sf)
+```
+
+Get the associated line scans names Each polygon can have more than one
+scan in the s3name field, seperate by ; The scans are not uploaded to
+storage grid yet, so we can download yet
+
+```{r}
+stringr::str_split(dat.progs.sf$s3name,";")
+
+```

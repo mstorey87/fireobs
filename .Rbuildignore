@@ -1,0 +1,6 @@
+^renv$
+^renv\.lock$
+^fireobs\.Rproj$
+^\.Rproj\.user$
+^LICENSE\.md$
+^dev$
