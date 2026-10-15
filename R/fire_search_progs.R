@@ -1,4 +1,4 @@
-#' Search for fire progression polygons in the database
+#' Search for and download fire progression polygons in the UOW database
 #'
 #' @description
 #' This function queries the University of Wollongong fire progression database for polygons representing mapped fire progression.
@@ -127,7 +127,7 @@ fire_search_progs <- function(fire_bbox = fire_bbox_polygon(),
   # Build SQL query to select with or without geometry
   if (return_geom == TRUE) {
     myquery <- paste0(
-      "SELECT dt_utc, dt_local, rowid, s3name, firetype, notes, sourceshp, firename, season, sourcetype, aus_state, scanorgnl, geom FROM fires.prog_polygons WHERE st_intersects(fires.prog_polygons.geom,'",
+      "SELECT dt_utc, dt_local, rowid, s3name, firetype, notes, sourceshp, firename, season, sourcetype, aus_state, scanorgnl, geom FROM fires.progression_polygons WHERE st_intersects(fires.progression_polygons.geom,'",
       txt_geom, "') AND ", txt_date
     )
     x <- sf::st_read(dsn = DB, query = myquery) %>%
@@ -138,8 +138,8 @@ fire_search_progs <- function(fire_bbox = fire_bbox_polygon(),
   if (return_geom == FALSE) {
     myquery <- paste0(
       "SELECT dt_utc, dt_local, rowid, s3name, firetype, notes, sourceshp, firename, season, sourcetype, aus_state, scanorgnl
-       FROM fires.prog_polygons
-       WHERE st_intersects(fires.prog_polygons.geom,'",
+       FROM fires.progression_polygons
+       WHERE st_intersects(fires.progression_polygons.geom,'",
       txt_geom, "') AND ", txt_date
     )
     x <- DBI::dbGetQuery(DB, myquery)
@@ -224,14 +224,14 @@ fire_search_progs <- function(fire_bbox = fire_bbox_polygon(),
 #'   #user input option to return results without geometry to save time
 #'   #run query and get results
 #'   if(return_geom==TRUE){
-#'     myquery <- paste0("SELECT * FROM fires.prog_polygons WHERE st_intersects(fires.prog_polygons.geom,'",txt_geom,"') AND ", txt_date)
+#'     myquery <- paste0("SELECT * FROM fires.progression_polygons WHERE st_intersects(fires.progression_polygons.geom,'",txt_geom,"') AND ", txt_date)
 #'     x <- sf::st_read(dsn=DB,query=myquery) %>%
 #'       sf::st_as_sf() %>%
 #'       dplyr::arrange(dplyr::desc(dt_local))
 #'   }
 #'
 #'   if(return_geom==FALSE){
-#'     myquery <- paste0("SELECT dt_utc,dt_local,rowid,s3name,firetype,progid,notes,sourceshp,firename,season,sourcetype,aus_state,scanname FROM fires.prog_polygons WHERE st_intersects(fires.prog_polygons.geom,'",txt_geom,"') AND ", txt_date)
+#'     myquery <- paste0("SELECT dt_utc,dt_local,rowid,s3name,firetype,progid,notes,sourceshp,firename,season,sourcetype,aus_state,scanname FROM fires.progression_polygons WHERE st_intersects(fires.progression_polygons.geom,'",txt_geom,"') AND ", txt_date)
 #'     x <- DBI::dbGetQuery(DB,myquery)
 #'   }
 #'

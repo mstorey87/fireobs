@@ -2,7 +2,7 @@
 % Please edit documentation in R/fire_search_progs.R
 \name{fire_search_progs}
 \alias{fire_search_progs}
-\title{Search for fire progression polygons in the database}
+\title{Search for and download fire progression polygons in the UOW database}
 \usage{
 fire_search_progs(
   fire_bbox = fire_bbox_polygon(),
