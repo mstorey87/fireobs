@@ -127,7 +127,7 @@ fire_search_progs <- function(fire_bbox = fire_bbox_polygon(),
   # Build SQL query to select with or without geometry
   if (return_geom == TRUE) {
     myquery <- paste0(
-      "SELECT dt_utc, dt_local, rowid, s3name, firetype, notes, sourceshp, firename, season, sourcetype, aus_state, scanorgnl, geom FROM fires.progression_polygons WHERE st_intersects(fires.progression_polygons.geom,'",
+      "SELECT dt_utc, dt_local, prog_rowid, s3name, firetype, notes, sourceshp, sourcecontact, firename, season, sourcetype, aus_state, scanorgnl, geom FROM fires.progression_polygons WHERE st_intersects(fires.progression_polygons.geom,'",
       txt_geom, "') AND ", txt_date
     )
     x <- sf::st_read(dsn = DB, query = myquery) %>%
@@ -137,7 +137,7 @@ fire_search_progs <- function(fire_bbox = fire_bbox_polygon(),
 
   if (return_geom == FALSE) {
     myquery <- paste0(
-      "SELECT dt_utc, dt_local, rowid, s3name, firetype, notes, sourceshp, firename, season, sourcetype, aus_state, scanorgnl
+      "SELECT dt_utc, dt_local, prog_rowid, s3name, firetype, notes, sourceshp, sourcecontact, firename, season, sourcetype, aus_state, scanorgnl
        FROM fires.progression_polygons
        WHERE st_intersects(fires.progression_polygons.geom,'",
       txt_geom, "') AND ", txt_date
@@ -231,7 +231,7 @@ fire_search_progs <- function(fire_bbox = fire_bbox_polygon(),
 #'   }
 #'
 #'   if(return_geom==FALSE){
-#'     myquery <- paste0("SELECT dt_utc,dt_local,rowid,s3name,firetype,progid,notes,sourceshp,firename,season,sourcetype,aus_state,scanname FROM fires.progression_polygons WHERE st_intersects(fires.progression_polygons.geom,'",txt_geom,"') AND ", txt_date)
+#'     myquery <- paste0("SELECT dt_utc,dt_local,prog_rowid,s3name,firetype,progid,notes,sourceshp,firename,season,sourcetype,aus_state,scanname FROM fires.progression_polygons WHERE st_intersects(fires.progression_polygons.geom,'",txt_geom,"') AND ", txt_date)
 #'     x <- DBI::dbGetQuery(DB,myquery)
 #'   }
 #'
