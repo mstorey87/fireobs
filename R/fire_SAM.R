@@ -15,8 +15,6 @@
 #'   \item The image should be a georeferenced 3-band (RGB) 8-bit GeoTIFF.
 #'   \item Give at least one of \code{polygons_sf} or \code{points_sf}. If both are given, use one
 #'     polygon with one or more points.
-#'   \item The mask is written to \code{working_dir} using the same file name as the image, so do not
-#'     set \code{working_dir} to the folder the image is in, or the image will be overwritten.
 #'   \item Holes smaller than 1000 m² are filled in the output polygons.
 #' }
 #'
@@ -25,7 +23,8 @@
 #'   of each polygon is used as a SAM box prompt. Any CRS (transformed to the image CRS).
 #' @param points_sf Optional \code{sf} point(s) placed inside the fire area, used as SAM
 #'   foreground point prompts. Any CRS (transformed to the image CRS).
-#' @param working_dir Folder for the temporary mask file. Default is \code{tempdir()}.
+#' @param working_dir No longer used (the mask is no longer written to disk). Kept so existing
+#'   calls still work.
 #'
 #' @returns An \code{sf} object of fire polygons in EPSG:4326, with columns \code{rowid} and \code{id}.
 #' @export
@@ -192,14 +191,8 @@ print('predictor image set')
   reticulate::py_set_attr(reticulate::py,"input_boxes",do.call(rbind,input_boxes))
 
 
-  outpath <- file.path(working_dir,basename(image_path))
-
-  reticulate::py_set_attr(reticulate::py,"outfile",outpath)
-
-  #reticulate::py$outfile <- outpath
-
   message("running sam")
-  # Step 5: Run SAM and save mask
+  # Step 5: Run SAM and build mask
   reticulate::py_run_string("
 height = image.shape[0]
 
@@ -250,21 +243,16 @@ if input_boxes is not None and len(input_boxes) > 0:
 elif input_boxes is None and point_list is not None:
     best_mask = masks[np.argmax(scores)]
 
-output_rgba = np.zeros((best_mask.shape[0], best_mask.shape[1], 4), dtype=np.uint8)
-
-output_rgba[best_mask > 0] = [254, 254, 254, 255]
-
-output_rgba = np.flipud(output_rgba)
-
-cv2.imwrite(outfile, output_rgba)
+best_mask = (best_mask > 0).astype(np.uint8)
 ")
 
 
 message("load and vectorize mask")
 # Step 6: Load and vectorize mask
-mask1 <- suppressWarnings(terra::rast(outpath))
-terra::ext(mask1) <- terra::ext(img_rast)
-terra::crs(mask1) <- terra::crs(img_rast)
+# The mask comes straight from Python as a matrix (row 1 = top of the image), rather than via a
+# non-georeferenced TIFF, because terra versions differ in whether they read those upside down.
+mask_mat <- reticulate::py$best_mask
+mask1 <- terra::rast(mask_mat, extent = terra::ext(img_rast), crs = terra::crs(img_rast))
 
 pol1 <- terra::as.polygons(mask1) %>%
   sf::st_as_sf() %>%
