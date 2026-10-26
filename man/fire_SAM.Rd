@@ -20,7 +20,8 @@ of each polygon is used as a SAM box prompt. Any CRS (transformed to the image C
 \item{points_sf}{Optional \code{sf} point(s) placed inside the fire area, used as SAM
 foreground point prompts. Any CRS (transformed to the image CRS).}
 
-\item{working_dir}{Folder for the temporary mask file. Default is \code{tempdir()}.}
+\item{working_dir}{No longer used (the mask is no longer written to disk). Kept so existing
+calls still work.}
 }
 \value{
 An \code{sf} object of fire polygons in EPSG:4326, with columns \code{rowid} and \code{id}.
@@ -40,8 +41,6 @@ available to \pkg{reticulate}. The SAM2 model is loaded on the first call in an 
 \item The image should be a georeferenced 3-band (RGB) 8-bit GeoTIFF.
 \item Give at least one of \code{polygons_sf} or \code{points_sf}. If both are given, use one
 polygon with one or more points.
-\item The mask is written to \code{working_dir} using the same file name as the image, so do not
-set \code{working_dir} to the folder the image is in, or the image will be overwritten.
 \item Holes smaller than 1000 m² are filled in the output polygons.
 }
 }
